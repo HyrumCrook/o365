@@ -5,12 +5,6 @@ This Script ensures that the OIT-Service Desk group "m.csce" has the rights of "
 m.csceUserUpdateScript
 
 
-Previously this script was not working correctly.  One can see the orginal script at "D:\Scripts\Licensesupdates\serviceDeskRights\m.csceUserUpdateScriptOld"
-
-The previously mentioned script failed to actually add users due to the error on line 38.  
-
-There was no $obj variable that was defined.  Also, the previous script would attempt to delete the files after use.  This didn't work because the time format wasn't used correctly.  The $deleteDate = (Get-Date).AddDays(-3) on line 72 cannot use the .AddDays and then format that correctly as was done on line 12 of the script.
-
 I saw no need to delete past files due to the fact that each file is only 1KB.  I took out this function.  I also created the $obj variable.  Because of
 this, each time the script is run it will give the following warning:
 
