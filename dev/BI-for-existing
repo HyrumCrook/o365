@@ -1,0 +1,40 @@
+
+
+    function Get-ContainsLicense {
+    param($licenses, $accountSku);
+
+    $toReturn = $licenses | Where-Object { $_.AccountSkuId -eq "byu:OFFICESUBSCRIPTION_STUDENT" };
+    
+    return $toReturn -ne $null;
+}
+
+Import-Module MSOnline
+$securePassword = ConvertTo-SecureString "Dana2471" -AsPlainText -Force
+$credentials = New-Object System.Management.Automation.PSCredential("licensesupdateuser@byu.onmicrosoft.com", $securePassword)
+Connect-MsolService -Credential $credentials
+
+$studentBI = New-MsolLicenseOptions -AccountSkuId byu:POWER_BI_STANDARD
+
+$facultyBI =  New-MsolLicenseOptions -AccountSkuId byu:POWER_BI_STANDARD
+
+$msolUsers = (Get-MsolUser -All);
+
+Import-Csv -Path D:\Scripts\Licensesupdates\currentusers\Office_365.txt |  ForEach-Object {
+    $csvusers += $_.UserPrincipalName;
+    $usersFound = Get-MsolUser -UserPrincipalName $_.UserPrincipalName;
+    
+        if($usersFound.isLicensed) {
+
+            if ($_.Status -eq "Student"){
+                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+	            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($studentBI) -AddLicenses @("byu:POWER_BI_STANDARD");
+               #Write-Output "Added non existing user $($_.UserPrincipalName) to Student" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+            }
+            elseif ($_.Status -eq "Employee"){
+                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+                Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($facultyBI) -AddLicenses @("byu:POWER_BI_STANDARD");
+                #Write-Output "Added non existing user $($_.UserPrincipalName) to Faculty" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+            }
+
+        }
+        }
