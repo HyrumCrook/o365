@@ -1,0 +1,61 @@
+#####This script will need some adjusting in order to work effectively.  We need to assume that the list to delete is
+#correct format and that it has the current head of .userprincipalname or something similar
+Import-Module MSOnline
+$securePassword = ConvertTo-SecureString "W3ar33dgy!" -AsPlainText -Force
+$credentials = New-Object System.Management.Automation.PSCredential("mjm287@byucommtest.onmicrosoft.com", $securePassword)
+Connect-MsolService -Credential $credentials
+$msolUsers = (Get-MsolUser -All)
+
+$todaysDate = Get-Date -Format yyyy-%M-%d
+$date = (Get-Date).AddDays(-1)
+$yesterdaysDate = date $date -format yyyy-%M-%d
+
+foreach ($usersFound in $msolusers){
+if ($usersFound -ne $null) {
+        if($usersFound.isLicensed) {
+           $haslicense += $usersFound.userprincipalname     
+}}}
+
+#this puts the activeusers in the correct format of "userprincipalname" into the array of $activeusers
+$yesterdaytodelete = Import-csv D:\stage\CurrentUsers.stage\userstodelete-$yesterdaysDate.txt
+
+foreach ($delete in $yesterdaytodelete) {
+    ($todelete += $delete.UserPrincipalName)
+}
+  
+  #This part of the script will compare the msoluser.licensed users and the those who should have been deleted
+  #if they have the license and were not removed it will send an email out to delete those users manually
+  foreach ($needremoving in $todelete)
+{
+    if ($haslicense -match $needremoving)
+        {
+           $needtoremove += $needremoving
+        }
+}
+
+#This is the email that would be sent out in case of a failure
+$From = "michaeljmatthews@byu.edu"
+$To = "office365admin@byu.edu"
+$Cc = "michaeljmatthews22@gmail.com"
+$Subject = "test"
+$Body = "The following individuals did not have their licenses removed. 
+
+IMPORTANT:  If this list has more than twenty people, please contact the lead engineer before removing. 
+
+$needtoremove
+
+These individuals are no longer eligible to have the office 365 license.
+Please go into the office.byu.edu admin section and manually remove these licenses.  Do not remove their account,
+simply their license.  
+
+
+"
+
+$SMTPServer = "gateway.byu.edu"
+$SMTPPort = "25"
+
+
+if ($needtoremove -ge 21)
+ {
+    Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject -Body $Body -SmtpServer $SMTPServer -port $SMTPPort -UseSsl
+    }
