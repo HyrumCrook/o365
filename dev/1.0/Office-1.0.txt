@@ -1,0 +1,141 @@
+
+function Get-ContainsLicense {
+    param($licenses, $accountSku);
+
+    $toReturn = $licenses | Where-Object { $_.AccountSkuId -eq "byu:OFFICESUBSCRIPTION_STUDENT" };
+    
+    return $toReturn -ne $null;
+}
+
+$curDate = $([datetime]::Now.ToString("yyyy-MM-dd"));
+$todaysDate = Get-Date -Format yyyy-%M-%d
+$date = (Get-Date).AddDays(-1)
+$yesterdaysDate = date $date -format yyyy-%M-%d
+
+Import-Module MSOnline
+$securePassword = ConvertTo-SecureString "W3ar33dgy!" -AsPlainText -Force
+$credentials = New-Object System.Management.Automation.PSCredential("mjm287@byucommtest.onmicrosoft.com", $securePassword)
+Connect-MsolService -Credential $credentials
+$msolUsers = (Get-MsolUser -All)
+$currentusers = import-csv D:\Stage\CurrentUsers.stage\ActiveUsers.txt
+
+$studentadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_STUDENT 
+
+$student = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_STUDENT -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$facultyadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_FACULTY 
+
+$BI = New-MsolLicenseOptions -AccountSkuId byu:POWER_BI_STANDARD
+
+$faculty = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+#This part of the script gives the licenses
+
+Import-Csv -Path D:\Stage\CurrentUsers.stage\give.txt |  ForEach-Object {
+
+            if ($_.Status -eq "Student"){
+                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+                Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($student, $studentadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
+               Write-Output "Added non existing user $($_.UserPrincipalName) to Student" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+            }
+            elseif ($_.Status -eq "Employee"){
+                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+                Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
+                Write-Output "Added non existing user $($_.UserPrincipalName) to Faculty" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+            }
+
+        }
+
+#This part of the script removes the licenses
+
+$needtoremovelist = import-csv D:\Stage\CurrentUsers.stage\userstodelete-$todaysdate.txt
+
+$needtoremove = @()
+
+ForEach($old in $needtoremovelist) {
+    ($needtoremove += $old.UserPrincipalName)
+}
+
+$catch2 = 35
+
+#This is the email that would be sent out in case of a failure
+$From = "michaeljmatthews@byu.edu"
+$To = "office365admin@byu.edu"
+$Cc = "michaeljmatthews22@gmail.com"
+$Subject = "TEST"
+$Body = "THIS IS A TEST - SCRIPT FAILED.  You have tried to remove the following individuals from their license usage
+
+$needtoremovelist
+
+If this is the desired number of people to remove, you will need to rerun this script. And change the variable of catch3 so
+This function of the script is in place to try and ensure that mass numbers of users are removed on accident "
+
+$SMTPServer = "gateway.byu.edu"
+$SMTPPort = "25"
+
+#This serves as a double check.  If $needtoremove exceeds a certain number the script will stop
+
+if ($needtoremove.length -ge $catch2) 
+{
+Write-host "You are trying to remove too many users at once.  This script will not function correctly"
+Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject -Body $Body -SmtpServer $SMTPServer -port $SMTPPort -UseSsl 
+break
+}
+
+#This does the actual removal of the licenses
+for($i = 0; $i -lt $needtoremove.Length; $i++) {
+    Set-MsolUserLicense -UserPrincipalName $needtoremove[$i] -RemoveLicenses byucommtest:EXCHANGESTANDARD_ALUMNI
+} 
+
+$needtoremove >> D:/stage/changelogs/removed-$todaysDate.txt
+
+#This part of the script looks at yesterday's users that should've been removed.  If they weren't removed then this
+#part of the script does that removal. 
+
+
+foreach ($usersFound in $msolUsers){
+if ($usersFound -ne $null) {
+        if($usersFound.isLicensed) {
+           $haslicense += $usersFound.userprincipalname     
+}}}
+
+#this puts the activeusers in the correct format of "userprincipalname" into the array of $activeusers
+$yesterdaytodelete = Import-csv D:\stage\CurrentUsers.stage\userstodelete-$yesterdaysDate.txt
+
+foreach ($delete in $yesterdaytodelete) {
+    ($todelete += $delete.UserPrincipalName)
+}
+  
+  #This part of the script will compare the msoluser.licensed users and the those who should have been deleted
+  #if they have the license and were not removed it will send an email out to delete those users manually
+  foreach ($needremoving in $todelete)
+{
+    if ($haslicense -match $needremoving)
+        {
+           $needtoremove += $needremoving
+        }
+}
+
+#This is the email that would be sent out in case of a failure
+$Subject2 = "test"
+$Body2 = "The following individuals did not have their licenses removed. 
+
+IMPORTANT:  If this list has more than twenty people, please contact the lead engineer before removing. 
+
+$needtoremove
+
+These individuals are no longer eligible to have the office 365 license.
+Please go into the office.byu.edu admin section and manually remove these licenses.  Do not remove their account,
+simply their license.  
+
+
+"
+
+$SMTPServer = "gateway.byu.edu"
+$SMTPPort = "25"
+
+
+if ($needtoremove -ge 21)
+ {
+    Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject2 -Body $Body2 -SmtpServer $SMTPServer -port $SMTPPort -UseSsl
+    }

@@ -36,12 +36,12 @@ Import-Csv -Path D:\Scripts\Licensesupdates\currentusers\Office_365.txt |  ForEa
             if ($_.Status -eq "Student"){
                 Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
 	            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($student, $studentadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
-               #Write-Output "Added non existing user $($_.UserPrincipalName) to Student" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+               Write-Output "Added non existing user $($_.UserPrincipalName) to Student" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
             }
             elseif ($_.Status -eq "Employee"){
                 Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
                 Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
-                #Write-Output "Added non existing user $($_.UserPrincipalName) to Faculty" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+                Write-Output "Added non existing user $($_.UserPrincipalName) to Faculty" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
             }
 
         }
@@ -50,11 +50,8 @@ Import-Csv -Path D:\Scripts\Licensesupdates\currentusers\Office_365.txt |  ForEa
         #cleanup for existing licenses
         elseif ($_.Status -eq "Employee" -and $usersFound.Licenses.Count -lt 2) {
             Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
-            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY");
+            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY");
         }
-        elseif ($usersFound.Licenses -ne $null -and (-not(Get-ContainsLicense -accountSku "byu:OFFICESUBSCRIPTION_STUDENT" -licenses ($usersFound.Licenses))) -and ($_.Status -eq "Student")){
-                Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions $studentadvantage -AddLicenses "byu:OFFICESUBSCRIPTION_STUDENT"
-                #Write-Output "Added existing user $($_.UserPrincipalName) to Office Pro Subscription" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
-        }
+       
  }
  } 
