@@ -1,1 +1,0 @@
-This command simply connects a mailbox that was disabled.  It will prompt the person running the script for the netid of the individual who needs their rights restored.  This has not been tested yet because since its creation we have not had any issues that were not on the stage. 
