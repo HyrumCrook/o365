@@ -1,16 +1,18 @@
-#In order to make this script better, I could make it so that it doesn't output the processing information on line 21
-
+#Remove Office 365 License from Students and Employees
+#August 14 2015
+#Michael Matthews
+##################
 #This script removes licenses from those who are not eligable for those licenses.  However this does not remove 
 #the actual account.  It only removes the licenses. 
 #the password for any "person" user is "W3ar33dgy!"
+#####################
 
-
-#########This script is different in that it depends on just recieving a single text file of all users to delete
-#instead of needing to compare a list with another one. 
-
+#Formatting Data
 $todaysDate = Get-Date -Format yyyy-%M-%d
 $date = (Get-Date).AddDays(-1)
 $yesterdaysDate = date $date -format yyyy-%M-%d
+
+#Establishing a session
 Import-Module MSOnline
 $securePassword = ConvertTo-SecureString "W3ar33dgy!" -AsPlainText -Force
 $credentials = New-Object System.Management.Automation.PSCredential("mjm287@byucommtest.onmicrosoft.com", $securePassword)
@@ -24,11 +26,11 @@ ForEach($old in $needtoremovelist) {
     ($needtoremove += $old.UserPrincipalName)
 }
 
-$catch2 = 35
+$catch2 = 20
 
 #This is the email that would be sent out in case of a failure
 $From = "michaeljmatthews@byu.edu"
-$To = "office365admin@byu.edu"
+$To = "comms_admins@byu.edu"
 $Cc = "michaeljmatthews22@gmail.com"
 $Subject = "TEST"
 $Body = "THIS IS A TEST - SCRIPT FAILED.  You have tried to remove the following individuals from their license usage
@@ -63,9 +65,28 @@ Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject -Body $Body -Smtp
 break
 }
 
-#This does the actual removal of the licenses
-for($i = 0; $i -lt $needtoremove.Length; $i++) {
-    Set-MsolUserLicense -UserPrincipalName $needtoremove[$i] -RemoveLicenses byucommtest:EXCHANGESTANDARD_ALUMNI
-} 
+
+$needtoremove |  ForEach-Object {
+    $csvusers += $_.UserPrincipalName;
+    $usersFound = Get-MsolUser -UserPrincipalName $_.UserPrincipalName;
+    
+    if ($usersFound -ne $null) {
+        if($usersFound.isLicensed) {
+
+            if ($_.Status -eq "Student"){
+                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+	            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($student, $studentadvantage, $BI) -RemoveLicenses @("byu:STANDARDWOFFPACK_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
+               Write-Output "Removed existing user $($_.UserPrincipalName) from Student" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+            }
+            elseif ($_.Status -eq "Employee"){
+                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+                Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -RemoveLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
+                Write-Output "Removed existing user $($_.UserPrincipalName) from Faculty" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+            }
+
+        }
+    
+ }
+ } 
 
 $needtoremove >> D:/stage/changelogs/removed-$todaysDate.txt

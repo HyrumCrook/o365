@@ -1,4 +1,16 @@
 
+#Give O365 Licenses
+#August 14, 2015
+#Michael Matthews 
+#################
+#This script is designed to give office 365 licenses to students and employees at BYU.  It logs in using the Connet-MsolService command
+#It then sets forth the different types of licenses. Afterwards it uses the Import-CSV command to bring in the list of need-to-add users.
+#Afterwards it determines whether or not they are a student or employee.  They are then given the appriopriate licenses.  
+#This information is then logged under D:\Scripts\Licensesupdates\Logs\ChangeLogs
+#################
+
+
+
 function Get-ContainsLicense {
     param($licenses, $accountSku);
 
@@ -26,7 +38,7 @@ $faculty = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_FACULTY -Di
 
 $msolUsers = (Get-MsolUser -All);
 
-Import-Csv -Path D:\Scripts\Licensesupdates\currentusers\Office_365.txt |  ForEach-Object {
+Import-Csv -Path D:\Scripts\Licensesupdates\currentusers\add.csv |  ForEach-Object {
     $csvusers += $_.UserPrincipalName;
     $usersFound = Get-MsolUser -UserPrincipalName $_.UserPrincipalName;
     
@@ -47,11 +59,18 @@ Import-Csv -Path D:\Scripts\Licensesupdates\currentusers\Office_365.txt |  ForEa
         }
      
        
+        #This was included before when the script wasn't working off a "Delta" feed (See the Import-CSV part of this script).  
+        #I believe that it will no longer be necessary to "cleanup" licenses this way.  If we run into a problem in the future
+        #we can go ahead and add the uncommented lines below
         #cleanup for existing licenses
-        elseif ($_.Status -eq "Employee" -and $usersFound.Licenses.Count -lt 2) {
-            Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
-            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY");
-        }
-       
+
+        #elseif ($_.Status -eq "Employee" -and $usersFound.Licenses.Count -lt 2) {
+        #    Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
+        #    Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
+        #}
+        #elseif ($usersFound.Licenses -ne $null -and (-not(Get-ContainsLicense -accountSku "byu:OFFICESUBSCRIPTION_STUDENT" -licenses ($usersFound.Licenses))) -and ($_.Status -eq "Student")){
+        #        Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions $studentadvantage -AddLicenses "byu:OFFICESUBSCRIPTION_STUDENT"
+                #Write-Output "Added existing user $($_.UserPrincipalName) to Office Pro Subscription" >> "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$curDate.txt";
+        #}
  }
  } 
