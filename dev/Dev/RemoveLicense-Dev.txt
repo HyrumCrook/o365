@@ -1,0 +1,80 @@
+#Remove Office 365 License from Students and Employees
+#August 14 2015
+#Michael Matthews
+##################
+#This script removes licenses from those who are not eligable for those licenses.  However this does not remove 
+#the actual account.  It only removes the licenses. 
+#the password for any "person" user is "W3ar33dgy!"
+#####################
+
+#Formatting Data
+$todaysDate = Get-Date -Format yyyy-%M-%d
+$date = (Get-Date).AddDays(-1)
+$yesterdaysDate = date $date -format yyyy-%M-%d
+
+#Establishing a session
+Import-Module MSOnline
+$securePassword = ConvertTo-SecureString "W3ar33dgy!" -AsPlainText -Force
+$credentials = New-Object System.Management.Automation.PSCredential("mjm287@byucommtest.onmicrosoft.com", $securePassword)
+Connect-MsolService -Credential $credentials
+
+$student = New-MsolLicenseOptions -AccountSkuId byucommtest:EXCHANGESTANDARD_ALUMNI -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$faculty = New-MsolLicenseOptions -AccountSkuId byucommtest:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$needtoremovelist = import-csv D:\Stage\CurrentUsers.stage\userstodelete.txt
+
+$needtoremove = @()
+
+ForEach($old in $needtoremovelist) {
+    ($needtoremove += $old.UserPrincipalName)
+}
+
+$catch = 31
+
+#This serves as a douple check.  If $needtoremove exceeds a certain number the script will stop
+if ($needtoremove.length -ge $catch) {
+Write-host "You are trying to remove too many users at once"
+break
+}
+
+$fileToWrite = "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$todaysDate.txt"
+$toWriteStudent = "Removed the following students "
+$toWriteEmployee = "Removed the following employees employee "
+$noUsers = "No users were removed today"
+
+$needtoremovelist |  ForEach-Object {
+    $csvusers += $_.UserPrincipalName;
+    $usersFound = Get-MsolUser -UserPrincipalName $_.UserPrincipalName;
+    
+    if ($usersFound -ne $null) {
+        if($usersFound.isLicensed) {
+
+            if ($_.Status -eq "Student"){
+              
+	            Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName  -RemoveLicenses @("byucommtest:STANDARDWOFFPACK_FACULTY");
+              $toWriteStudent += "$($_.UserPrincipalName)", "$($_.Status)" ;
+              
+            }
+            elseif ($_.Status -eq "Employee"){
+               
+                Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -RemoveLicenses @("byucommtest:STANDARDWOFFPACK_FACULTY");
+               $toWriteEmployee += "$($_.UserPrincipalName)", "$($_.Status)";
+            }
+
+        }
+    
+     }
+ } 
+
+ if ($needtogivelist.Length -eq 0){
+
+ $noUsers | Outfile $fileToWrite -append 
+
+ }
+ else {
+ 
+ $toWriteStudent | Out-file $fileToWrite -append
+ $toWriteEmployee | Out-File $fileToWrite -append
+
+ }
