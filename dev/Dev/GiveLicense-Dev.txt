@@ -14,11 +14,21 @@
 $todaysDate = Get-Date -Format yyyy-%M-%d
 $currentYear = Get-Date -Format yyyy
 
-#Establishing a session.  In the Dev environment this is different than the prod information
+
+#If you ever need to change the password.  Use the code below to convert it to a secure string and save it to a file
+# "passwordExample" | ConvertTo-SecureString -AsPlainText -Force |
+# ConvertFrom-SecureString | Out-File "D:\Stage\Login\o365-Dev\Login2.txt"
+
+
+#Establishing a session
 Import-Module MSOnline
-$securePassword = ConvertTo-SecureString "W3ar33dgy!" -AsPlainText -Force
-$credentials = New-Object System.Management.Automation.PSCredential("mjm287@byucommtest.onmicrosoft.com", $securePassword)
-Connect-MsolService -Credential $credentials
+$User = "licenseupdateuser@byucommtest.onmicrosoft.com"
+$File = "D:\Stage\Login\o365-Dev\Login2.txt"
+$MyCredential=New-Object -TypeName System.Management.Automation.PSCredential `
+ -ArgumentList $User, (Get-Content $File | ConvertTo-SecureString)
+Connect-MsolService -Credential $MyCredential >> D:\Stage\changelogs\login.txt
+
+
 
 #The variables below are for logging purposes
 $fileToWrite = "D:\Scripts\Licensesupdates\Logs\ChangeLogs\$currentYear\change-$todaysDate.txt" 
