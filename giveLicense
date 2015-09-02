@@ -16,18 +16,16 @@ $currentYear = Get-Date -Format yyyy
 
 
 #If you ever need to change the password.  Use the code below to convert it to a secure string and save it to a file
-# "passwordExample" | ConvertTo-SecureString -AsPlainText -Force |
-# ConvertFrom-SecureString | Out-File "D:\Stage\Login\o365-Dev\Login2.txt"
-
+ #"testpassword" | ConvertTo-SecureString -AsPlainText -Force |
+ #ConvertFrom-SecureString | Out-File "D:\Prod\Login\o365-Prod\Login2.txt"
 
 #Establishing a session
 Import-Module MSOnline
-$User = "licenseupdateuser@byucommtest.onmicrosoft.com"
-$File = "D:\Stage\Login\o365-Dev\Login2.txt"
+$User = "licensesupdateuser@byu.onmicrosoft.com"
+$File = "D:\Prod\Login\o365-Prod\Login2.txt"
 $MyCredential=New-Object -TypeName System.Management.Automation.PSCredential `
  -ArgumentList $User, (Get-Content $File | ConvertTo-SecureString)
-Connect-MsolService -Credential $MyCredential >> D:\Stage\changelogs\login.txt
-
+Connect-MsolService -Credential $MyCredential 
 
 
 #The variables below are for logging purposes
@@ -37,12 +35,20 @@ $toLogEmployee = " Added the following employees"
 $noUsers = "No Users were added today"
 
 #In dev the licenses are different than those in prod
-$student = New-MsolLicenseOptions -AccountSkuId byucommtest:STANDARDWOFFPACK_FACULTY  -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+$studentadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_STUDENT 
 
-$faculty = New-MsolLicenseOptions -AccountSkuId byucommtest:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+$student = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_STUDENT -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$facultyadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_FACULTY 
+
+$faculty = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$BI = New-MsolLicenseOptions -AccountSkuId byu:POWER_BI_STANDARD
 
 #This list is supplied by the Informatica feed daily.  If this script fails to update the users one day, the next they will still be considered "new"
-$needtogivelist = import-csv D:\Stage\CurrentUsers.stage\userstodelete.txt
+
+#########The locations of the file below needs to be changed for prod ################
+$needtogivelist = import-csv D:\Scripts\Licensesupdates\currentusers\Office_365_Add.txt
 
 $needtogivelist |  ForEach-Object {
     $usersFound = Get-MsolUser -UserPrincipalName $_.UserPrincipalName;
@@ -53,13 +59,13 @@ $needtogivelist |  ForEach-Object {
             if ($_.Status -eq "Student"){
               Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
               #The line below is the the code that actually gives the license
-              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($student) -AddLicenses @("byucommtest:STANDARDWOFFPACK_FACULTY");
+              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($student, $studentadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
               $toLogStudent += "$($_.UserPrincipalName)", "$($_.Status)";
             }
             elseif ($_.Status -eq "Employee"){
                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
                 #The line below is the the code that actually gives the license
-               Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty) -AddLicenses @("byucommtest:STANDARDWOFFPACK_FACULTY");
+              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
               $toLogEmployee += "$($_.UserPrincipalName)", "$($_.Status)";
             }
 
@@ -70,6 +76,7 @@ $needtogivelist |  ForEach-Object {
  
  #If there isn't any users added then it loggs $noUsers
  
+ write-host $needtogivelist
  if ($needtogivelist.Length -eq 0){
 
  $noUsers | Outfile $fileToWrite -append
@@ -77,7 +84,8 @@ $needtogivelist |  ForEach-Object {
  }
  else {
  
- $toWriteStudent | Out-file $fileToWrite -append
- $toWriteEmployee | Out-File $fileToWrite -append
+ $toLogStudent | Out-file $fileToWrite -append
+ $toLogEmployee | Out-File $fileToWrite -append
 
  }
+
