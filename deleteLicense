@@ -96,5 +96,3 @@ $noUsers = "No users were removed today"
  $toLogEmployee | Out-File $fileToWrite -append
 
  }
-
- 

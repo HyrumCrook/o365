@@ -4,6 +4,7 @@ Office 365 Script
  
 On developer.byu.edu under Support Service Engineering/O365/ the script itself and git commands and more information regarding this script can be found.  
  
+Note the "recover" versions goes through and gets all the users that are licensed from MSOL and then compares that list with the list of all active students/employees that is supplied by Mark Werner. The script needs to be run manually and will output a file.  Make sure that this file has only people you want to add or delete.  This is meant to catch anything that is missed by the delta scripts and should be run about once every semester.
   
 User Name and Password 
    

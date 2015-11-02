@@ -1,0 +1,51 @@
+#recoverDeltaPowershell
+#Michael Matthews
+
+#Import Module and Login
+
+Import-Module MSOnline
+$User = "licensesupdateuser@byu.onmicrosoft.com"
+$File = "D:\Prod\Login\o365-Prod\Login2.txt"
+$MyCredential=New-Object -TypeName System.Management.Automation.PSCredential `
+ -ArgumentList $User, (Get-Content $File | ConvertTo-SecureString)
+Connect-MsolService -Credential $MyCredential
+
+#Get all users, licensed or not
+$allUsers = get-msoluser -all
+
+$licensed = @()
+
+#Get only the Licensed individuals and put them into array
+for ($i = 0; $i -lt 80000; $i++){
+
+    if ($allUsers[$i].isLicensed -eq "True"){
+
+    $licensed += $allUsers[$i].UserPrincipalName
+
+    }
+}
+
+#Import list of Eligible Users that is supplied and updated weekly by Mark Werner
+$needsRemoval = @()
+$active = Import-csv "D:\Scripts\Licensesupdates\currentusers\Office_365_Eligible_Users.txt"
+$activePrincipal = $active.UserPrincipalName
+
+foreach ($user in $licensed){
+
+    if($activePrincipal -notcontains $user){
+
+    $needsRemoval += $user
+    
+    }
+}
+
+foreach ($user in $needsRemoval){
+
+    if ($activePrincipal -contains $user){
+
+    echo "error"
+    }
+}
+
+
+$needsRemoval >> D:\Scripts\Licensesupdates\currentusers\bigRemoval.csv
