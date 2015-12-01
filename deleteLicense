@@ -1,6 +1,8 @@
 #Remove O365 Licenses
 #August 14, 2015
 #Michael Matthews 
+#Important NOTE: There is a catch on this script. If you try and remove more than 15,000 users at once it will not work
+
 #################
 #This script is designed to remove office 365 licenses from past students and employees at BYU.  It logs in using the Connet-MsolService command
 #It then sets forth the different types of licenses. Afterwards it uses the Import-CSV command to bring in the list of need-to-remove users.
@@ -29,12 +31,6 @@ $toLogStudent = " Added the following students "
 $toLogEmployee = " Added the following employees"
 $noUsers = "No Users were added today"
 
-#In dev the licenses are different than those in prod
-$studentadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_STUDENT 
-$student = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_STUDENT -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
-$facultyadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_FACULTY 
-$faculty = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
-$BI = New-MsolLicenseOptions -AccountSkuId byu:POWER_BI_STANDARD
 
 $needToRemoveList = import-csv D:\Scripts\Licensesupdates\currentusers\Office_365_Delete.txt
 
@@ -45,18 +41,32 @@ ForEach($old in $needToRemoveList) {
 }
 
 #The number below is the limit to how many users can be removed at once
-$catch = 10000
+$catch = 15000
+
+$From = "office365admin@byu.edu"
+$To = "office365admin@byu.edu"
+$Cc = "michaeljmatthews@byu.edu"
+$Subject = "Office 365 Script Failed"
+$Body = "There is a script that runs on ADFS1 on a daily basis to give and remove office 365 licenses. The script failed because it exceeded the limit of 
+deletions allowed per day. No users were deleted. In order to delete these users please do it manually.
+
+Thank you
+
+
+BYU OIT"
+
+$SMTPServer = "gateway.byu.edu"
+$SMTPPort = "25"
+
+
 
 #This serves as a douple check.  If $needtoremove exceeds a certain number the script will stop
 if ($needtoremove.length -ge $catch) {
-Write-host "You are trying to remove too many users at once"
-break
+    Write-host "You are trying to remove too many users at once"
+    Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject -Body $Body -SmtpServer $SMTPServer -port $SMTPPort
+    break
 }
 
-$fileToWrite = "D:\Scripts\Licensesupdates\Logs\ChangeLogs\change-$todaysDate.txt"
-$toLogStudent = "Removed the following students "
-$toLogEmployee = "Removed the following employees employee "
-$noUsers = "No users were removed today"
 
 
  $needToRemoveList |  ForEach-Object {
@@ -68,16 +78,29 @@ $noUsers = "No users were removed today"
 
             if ($_.Status -eq "Student"){
               
-	          Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName  -RemoveLicenses @("byu:STANDARDWOFFPACK_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
-              $toLogStudent += "$($_.UserPrincipalName)", "$($_.Status)" ;
-              
+		#The reason that I go through and delete both student and faculty licenses is because sometimes we have issues where a student, over the summer becomes an employee. So when we go to delete them
+		#we need to delete any license they may have because even though they may be an "employee" they may have a student license
+		#The reason that I don't delete all the licenses on a single line is because if one of the licenses isn't there, the command fails and doesn't delete any of them
+
+	     	Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:STANDARDWOFFPACK_STUDENT
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:OFFICESUBSCRIPTION_STUDENT
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:POWER_BI_STANDARD 
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:OFFICESUBSCRIPTION_FACULTY
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:STANDARDWOFFPACK_FACULTY
+              $toLogStudent += "$($_.UserPrincipalName)", ",";
+
+               
             }
             elseif ($_.Status -eq "Employee"){
                
-               Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -RemoveLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
-               $toLogEmployee += "$($_.UserPrincipalName)", "$($_.Status)";
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:STANDARDWOFFPACK_STUDENT
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:OFFICESUBSCRIPTION_STUDENT
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:POWER_BI_STANDARD 
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:OFFICESUBSCRIPTION_FACULTY
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:STANDARDWOFFPACK_FACULTY
+              $toLogEmployee += "$($_.UserPrincipalName)", ",";
+        
             }
-
         }
     
      }
@@ -86,13 +109,12 @@ $noUsers = "No users were removed today"
  #If there isn't any users removed then it loggs $noUsers
  
  if ($needToRemoveList.Length -eq 0){
-
- $noUsers | Outfile $fileToWrite -append
-
+     $noUsers | Outfile $fileToWrite -append
  }
  else {
  
- $toLogStudent | Out-file $fileToWrite -append
- $toLogEmployee | Out-File $fileToWrite -append
+    $toLogStudent | Out-file $fileToWrite -append
+    $toLogEmployee | Out-File $fileToWrite -append
+}
 
- }
+ 

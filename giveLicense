@@ -8,7 +8,8 @@
 #This information is then logged under D:\Scripts\Licensesupdates\Logs\ChangeLogs
 #################
 
-#if it misses a day the next day it'll theoritcally check
+#If there is a day that the script does not go off, then the user will not be deleted. Therefore, at the end of each semester you should manually run a script to manually remove all the users
+#that fell inbetween the cracks
 
 #Formatting Dates
 $todaysDate = Get-Date -Format yyyy-%M-%d
