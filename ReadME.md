@@ -32,7 +32,6 @@ Also, under the script, it has a certain threshold of users to delete at once.  
 Possible Issues 
 If the script begins removing many licenses at once, immediately stop the script on ADFS1 and change the name of the script in Task Manager so that the script doesn't kick off the next morning. 
  
-For more information contact - Michael Matthews, Jim Saunders, Josh Caldwell, Dan Cunningham (in that order) 
 
 Find Documentation
 ==================
