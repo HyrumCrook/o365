@@ -16,19 +16,31 @@ $currentYear = Get-Date -Format yyyy
 
 #If you ever need to change the password.  Use the code below to convert it to a secure string and save it to a file "testpassword" | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Out-File "D:\Prod\Login\o365-Prod\Login2.txt"
 
+
+<#
+Important!!!
+
+In order to run this script you have to be running it as emailservice. This is because it was the 
+emailservice account that encrypted the password at D:\Prod\Login\o365-Prod\Login2.txt
+
+
+#>
+
+
 #Establishing a session
 Import-Module MSOnline
 $User = "licensesupdateuser@byu.onmicrosoft.com"
 $File = "D:\Prod\Login\o365-Prod\Login2.txt"
-$MyCredential=New-Object -TypeName System.Management.Automation.PSCredential `
+$MyCredential = New-Object -TypeName System.Management.Automation.PSCredential `
  -ArgumentList $User, (Get-Content $File | ConvertTo-SecureString)
+
 Connect-MsolService -Credential $MyCredential 
 
 
 #The variables below are for logging purposes
-$fileToWrite = "D:\Scripts\Licensesupdates\Logs\ChangeLogs\$currentYear\change-$todaysDate.txt" 
-$toLogStudent = " Added the following students "
-$toLogEmployee = " Added the following employees"
+$fileToWrite = "D:\Prod\Logs\ChangeLogs\$currentYear\change-$todaysDate.txt" 
+$toLogStudent = " Removed the following students "
+$toLogEmployee = " Removed the following employees"
 $noUsers = "No Users were added today"
 
 
@@ -87,6 +99,9 @@ if ($needtoremove.length -ge $catch) {
               Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:POWER_BI_STANDARD 
               Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:OFFICESUBSCRIPTION_FACULTY
               Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:STANDARDWOFFPACK_FACULTY
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:PROJECTONLINE_PLAN_1_STUDENT
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:PROJECTONLINE_PLAN_1_FACULTY
+
               $toLogStudent += "$($_.UserPrincipalName)", ",";
 
                
@@ -98,6 +113,9 @@ if ($needtoremove.length -ge $catch) {
               Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:POWER_BI_STANDARD 
               Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:OFFICESUBSCRIPTION_FACULTY
               Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:STANDARDWOFFPACK_FACULTY
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:PROJECTONLINE_PLAN_1_STUDENT
+              Set-MsolUserLicense -UserPrincipalName  $_.UserPrincipalName -RemoveLicense byu:PROJECTONLINE_PLAN_1_FACULTY
+
               $toLogEmployee += "$($_.UserPrincipalName)", ",";
         
             }
