@@ -21,32 +21,47 @@ $currentYear = Get-Date -Format yyyy
  #ConvertFrom-SecureString | Out-File "D:\Prod\Login\o365-Prod\Login2.txt"
 
 #Establishing a session
+<#
+Important!!!
+
+In order to run this script you have to be running it as emailservice. This is because it was the 
+emailservice account that encrypted the password at D:\Prod\Login\o365-Prod\Login2.txt
+
+#>
+
+
 Import-Module MSOnline
 $User = "licensesupdateuser@byu.onmicrosoft.com"
 $File = "D:\Prod\Login\o365-Prod\Login2.txt"
 $MyCredential=New-Object -TypeName System.Management.Automation.PSCredential `
  -ArgumentList $User, (Get-Content $File | ConvertTo-SecureString)
+
 Connect-MsolService -Credential $MyCredential 
 
 
 #The variables below are for logging purposes
-$fileToWrite = "D:\Scripts\Licensesupdates\Logs\ChangeLogs\$currentYear\change-$todaysDate.txt" 
+$fileToWrite = "D:\Prod\Logs\ChangeLogs\$currentYear\change-$todaysDate.txt" 
 $toLogStudent = " Added the following students "
 $toLogEmployee = " Added the following employees"
 $noUsers = "No Users were added today"
 
 #In dev the licenses are different than those in prod
+#If you want to see every service plan and it's provisioning status: Get-MSolAccountSku | select -ExpandProperty ServiceStatus
 $studentadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_STUDENT 
 
-$student = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_STUDENT -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+#$student = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_STUDENT -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$Proj_Student = New-MsolLicenseOptions -AccountSkuId byu:PROJECTONLINE_PLAN_1_STUDENT 
 
 $facultyadvantage = New-MsolLicenseOptions -AccountSkuId byu:OFFICESUBSCRIPTION_FACULTY 
 
-$faculty = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+#$faculty = New-MsolLicenseOptions -AccountSkuId byu:STANDARDWOFFPACK_FACULTY -DisabledPlans EXCHANGE_S_STANDARD,MCOSTANDARD
+
+$Proj_Faculty = New-MsolLicenseOptions -AccountSkuId byu:PROJECTONLINE_PLAN_1_FACULTY
 
 $BI = New-MsolLicenseOptions -AccountSkuId byu:POWER_BI_STANDARD
 
-#This list is supplied by the Informatica feed daily.  If this script fails to update the users one day, the next they will still be considered "new"
+#########If the script fails, email Mark Werner and get the list of people.
 
 #########The locations of the file below needs to be changed for prod ################
 $needtogivelist = import-csv D:\Scripts\Licensesupdates\currentusers\Office_365_Add.txt
@@ -60,13 +75,13 @@ $needtogivelist |  ForEach-Object {
             if ($_.Status -eq "Student"){
               Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
               #The line below is the the code that actually gives the license
-              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($student, $studentadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
+              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($Proj_Student, $studentadvantage, $BI) -AddLicenses @("byu:PROJECTONLINE_PLAN_1_STUDENT", "byu:OFFICESUBSCRIPTION_STUDENT", "byu:POWER_BI_STANDARD");
               $toLogStudent += "$($_.UserPrincipalName)", "$($_.Status)";
             }
             elseif ($_.Status -eq "Employee"){
                Set-MsolUser -UserPrincipalName $_.UserPrincipalName -UsageLocation "US"
                 #The line below is the the code that actually gives the license
-              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($faculty, $facultyadvantage, $BI) -AddLicenses @("byu:STANDARDWOFFPACK_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
+              Set-MsolUserLicense -UserPrincipalName $_.UserPrincipalName -LicenseOptions @($Proj_Faculty, $facultyadvantage, $BI) -AddLicenses @("byu:PROJECTONLINE_PLAN_1_FACULTY", "byu:OFFICESUBSCRIPTION_FACULTY", "byu:POWER_BI_STANDARD");
               $toLogEmployee += "$($_.UserPrincipalName)", "$($_.Status)";
             }
 
